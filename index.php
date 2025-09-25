@@ -246,8 +246,24 @@ for ($i = $days_to_fetch - 1; $i >= 0; $i--) {
                     </button>
                     <a class="navbar-brand ms-3 d-none d-md-block" href="#">
                         <i class="fas fa-tachometer-alt me-2"></i> แดชบอร์ด
+                    <div class="ms-auto me-3 d-flex align-items-center">
                     </a>
                     <div class="ms-auto me-3 d-flex align-items-center">
+                        <?php
+                             require_once __DIR__.'/db_config.php';
+                              session_start();
+                             $balance_baht = '0.00';
+                             if (!empty($_SESSION['user_id'])) {
+                                $q = $conn->prepare("SELECT c.balance FROM nfc_cards n JOIN cards c ON c.uid = n.card_uid WHERE n.user_id=? LIMIT 1");
+                                $q->execute([ (int)$_SESSION['user_id'] ]);
+                                $satang = (int)($q->fetchColumn() ?: 0);
+                                $balance_baht = number_format($satang / 100, 2);
+                            }
+                        ?>
+                        <div class="wallet-balance">ยอดคงเหลือ: <strong><?php echo $balance_baht; ?> บาท</strong>
+                            <a href="index.php" class="btn btn-sm">รีเฟรช</a>
+                        </div>
+
                         <span class="badge bg-info me-2">
                             <i class="fas fa-user me-1"></i> <?php echo htmlspecialchars($_SESSION['username']); ?>
                         </span>
@@ -260,24 +276,7 @@ for ($i = $days_to_fetch - 1; $i >= 0; $i--) {
             <div class="container-fluid py-4">
                 <h3 class="mb-4 dashboard-title">ภาพรวมระบบ</h3>
 
-                <div class="row g-4 mb-4">
-                    <div class="col-lg-4 col-md-6">
-                        <div class="card custom-card h-100 shadow-sm border-start border-success border-5">
-                            <div class="card-body">
-                                <div class="row align-items-center">
-                                    <div class="col-auto">
-                                        <div class="icon-circle bg-success-subtle text-success">
-                                            <i class="fas fa-money-bill-wave fa-2x"></i>
-                                        </div>
-                                    </div>
-                                    <div class="col">
-                                        <h5 class="card-title text-success mb-1">เงินทั้งหมดที่ยังไม่หัก</h5>
-                                        <p class="card-text fs-4 fw-bold">฿<?php echo number_format($total_topup_amount, 2); ?></p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <div class="row g-4 mb-4 justify-content-center">
                     <div class="col-lg-4 col-md-6">
                         <div class="card custom-card h-100 shadow-sm border-start border-primary border-5">
                             <div class="card-body">
@@ -289,24 +288,7 @@ for ($i = $days_to_fetch - 1; $i >= 0; $i--) {
                                     </div>
                                     <div class="col">
                                         <h5 class="card-title text-primary mb-1">ยอดเงินคงเหลือสุทธิ</h5>
-                                        <p class="card-text fs-4 fw-bold">฿<?php echo number_format($total_topup_amount - $total_buy_amount, 2); ?></p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-4 col-md-6">
-                        <div class="card custom-card h-100 shadow-sm border-start border-danger border-5">
-                            <div class="card-body">
-                                <div class="row align-items-center">
-                                    <div class="col-auto">
-                                        <div class="icon-circle bg-danger-subtle text-danger">
-                                            <i class="fas fa-minus-circle fa-2x"></i>
-                                        </div>
-                                    </div>
-                                    <div class="col">
-                                        <h5 class="card-title text-danger mb-1">ยอดรวมเงินออก</h5>
-                                        <p class="card-text fs-4 fw-bold">฿<?php echo number_format($total_buy_amount, 2); ?></p>
+                                        <p class="card-text fs-4 fw-bold">฿<?php echo $balance_baht; ?></p>
                                     </div>
                                 </div>
                             </div>
@@ -342,7 +324,7 @@ for ($i = $days_to_fetch - 1; $i >= 0; $i--) {
                     <div class="col-12 mt-4">
                         <div class="card custom-card h-100 shadow-sm">
                             <div class="card-header custom-card-header">
-                                <h5 class="mb-0">แนวโน้มรายได้ รายจ่าย และยอดคงเหลือสุทธิ (30 วันล่าสุด)</h5>
+                                <h5 class="mb-0">แนวโน้มยอดคงเหลือสุทธิ (30 วันล่าสุด)</h5>
                             </div>
                             <div class="card-body">
                                 <div class="chart-container-lg">
@@ -644,25 +626,9 @@ for ($i = $days_to_fetch - 1; $i >= 0; $i--) {
                 labels: chartLabels,
                 datasets: [
                     {
-                        label: 'ยอดเงินเข้า (รายได้)',
-                        data: topupData,
-                        borderColor: 'rgba(40, 167, 69, 1)', // Success green
-                        backgroundColor: 'rgba(40, 167, 69, 0.2)',
-                        fill: false,
-                        tension: 0.2 // Smooth curves
-                    },
-                    {
-                        label: 'ยอดเงินออก (รายจ่าย)',
-                        data: buyData,
-                        borderColor: 'rgba(220, 53, 69, 1)', // Danger red
-                        backgroundColor: 'rgba(220, 53, 69, 0.2)',
-                        fill: false,
-                        tension: 0.2
-                    },
-                    {
                         label: 'ยอดคงเหลือสุทธิ',
                         data: netBalanceData,
-                        borderColor: 'rgba(0, 123, 255, 1)', // Primary blue
+                        borderColor: 'rgba(0, 123, 255, 1)',
                         backgroundColor: 'rgba(0, 123, 255, 0.2)',
                         fill: false,
                         tension: 0.2
