@@ -1,70 +1,45 @@
 <?php
-// /api/wallet_authorize.php
-declare(strict_types=1);
-require_once __DIR__ . '/bootstrap.php';
-require_once __DIR__ . '/helpers.php';
-session_start();
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 
-$pdo = $__pdo;
-$d = api_read_json();
-$uid = isset($d['uid']) ? trim((string)$d['uid']) : '';
-$amount = isset($d['amount']) ? (int)$d['amount'] : 0;
+// api/wallet_authorize.php
+header('Content-Type: application/json; charset=utf-8');
+require_once __DIR__ . '/../db_config.php'; // $conn (PDO)
 
-if ($uid === '' || $amount <= 0) {
-    api_json(['allow'=>false, 'msg'=>'bad input'], 400);
-}
+$in = json_decode(file_get_contents('php://input'), true) ?: [];
+$uid     = trim($in['card_uid'] ?? $in['uid'] ?? '');
+$user_id = isset($in['user_id']) ? (int)$in['user_id'] : null;
+$amount  = isset($in['amount']) ? (int)$in['amount'] : 0; // หน่วยสตางค์
+$block4  = strtoupper(trim($in['block4'] ?? ''));
 
-// ?????????? user login ???????????
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['username'])) {
-    api_json(['allow'=>false, 'msg'=>'not logged in'], 403);
-}
-$userId   = (int)$_SESSION['user_id'];
-$username = $_SESSION['username'];
+if ($uid === '' || !$user_id) { http_response_code(400); echo json_encode(['allow'=>false,'msg'=>'missing uid/user_id']); exit; }
 
-$pdo->beginTransaction();
-try {
-    $st = $pdo->prepare('SELECT id, balance, version, user_id FROM nfc_cards WHERE card_uid=? FOR UPDATE');
-    $st->execute([$uid]);
-    $row = $st->fetch();
+// ยืนยันความสัมพันธ์ uid ↔ user_id
+$chk = $conn->prepare("SELECT 1 FROM nfc_cards WHERE user_id=? AND card_uid=? LIMIT 1");
+$chk->execute([$user_id, $uid]);
+if (!$chk->fetchColumn()) { echo json_encode(['allow'=>false,'msg'=>'uid does not belong to this user']); exit; }
 
-    if (!$row) {
-        // ????????????????????????? ? auto insert
-        $pdo->prepare('INSERT INTO nfc_cards (card_uid, user_id, username, balance, version, is_active, created_at)
-                       VALUES (?, ?, ?, 0, 1, 1, NOW())')
-            ->execute([$uid, $userId, $username]);
+// หาคำขอล่าสุดของ uid
+$req = $conn->prepare("SELECT id, amount, status FROM requests WHERE uid=? AND status IN ('pending','approved') ORDER BY id DESC LIMIT 1");
+$req->execute([$uid]);
+$R = $req->fetch(PDO::FETCH_ASSOC);
 
-        $pdo->commit();
-        api_json(['allow'=>false, 'msg'=>'card registered, no balance'], 200);
-    }
+if (!$R && $amount <= 0) { echo json_encode(['allow'=>false,'msg'=>'no pending/approved request']); exit; }
+if ($R) $amount = (int)$R['amount'];
 
-    // ????????????????????????? user ??? ? ??????
-    if ((int)$row['user_id'] !== $userId) {
-        $pdo->rollBack();
-        api_json(['allow'=>false, 'msg'=>'card not belong to user'], 403);
-    }
+// สร้าง newBlock4
+$seed = $uid.'|'.$user_id.'|'.$amount.'|'.time().$block4;
+$newBlock4 = strtoupper(substr(hash('sha256', $seed), 0, 32));
 
-    $bal = (int)$row['balance'];
-    $ver = (int)$row['version'];
+// บันทึก pending_writes
+$stmt = $conn->prepare("
+  INSERT INTO pending_writes (uid, newBlock4, request_id, created_at)
+  VALUES (?, ?, ?, NOW())
+  ON DUPLICATE KEY UPDATE
+    newBlock4 = VALUES(newBlock4),
+    request_id = VALUES(request_id),
+    created_at = NOW()
+");
+$stmt->execute([$uid, $newBlock4, $R ? (int)$R['id'] : null]);
 
-    if ($bal < $amount) {
-        $pdo->rollBack();
-        api_json(['allow'=>false, 'msg'=>'insufficient funds'], 200);
-    }
-
-    $new = $bal - $amount;
-    $newVer = $ver + 1;
-
-    $pdo->prepare('UPDATE nfc_cards SET balance=?, version=? WHERE card_uid=?')
-        ->execute([$new, $newVer, $uid]);
-
-    $pdo->prepare('INSERT INTO logs(card_uid, action, delta, balance_after, request_id) VALUES(?,?,?,?,NULL)')
-        ->execute([$uid, 'spend', -$amount, $new]);
-
-    $pdo->commit();
-
-    $hex32 = api_block4_from_balance($new);
-    api_json(['allow'=>true, 'newBlock4'=>$hex32, 'msg'=>'OK']);
-} catch (Throwable $e) {
-    $pdo->rollBack();
-    api_json(['allow'=>false, 'msg'=>'db error'], 500);
-}
+echo json_encode(['allow'=>true,'newBlock4'=>$newBlock4,'msg'=>'ok']);

@@ -9,4 +9,7 @@ try {
 } catch (PDOException $e) {
     echo "Connection failed: " . $e->getMessage();  # เพิ่มเพื่อ debug
 }
+
+date_default_timezone_set('Asia/Bangkok');
+
 ?>

@@ -1,72 +1,41 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// nfc_simulate.php
 
-session_start();
-require_once __DIR__ . '/db_config.php';
-
-// ตรวจสอบ login
-if(!isset($_SESSION['user_id'])){
-    header("Location: login.php");
-    exit;
-}
-
-$userId = $_SESSION['user_id'];
-$msg = "";
-
-// ถ้ามีการ submit request
-if($_SERVER['REQUEST_METHOD'] === 'POST'){
-    $amount = (int)($_POST['amount'] ?? 0);
-    if($amount > 0){
-        $stmt = $conn->prepare("INSERT INTO wallet_requests(user_id, amount, status, created_at) VALUES(?,?, 'pending', NOW())");
-        $stmt->execute([$userId, $amount]);
-        $msg = "Request submitted! Waiting for admin approval.";
-    } else {
-        $msg = "Please enter a valid amount.";
-    }
-}
-
-// ดึงคำขอของ user
-$stmt = $conn->prepare("SELECT * FROM wallet_requests WHERE user_id=? ORDER BY created_at DESC");
-$stmt->execute([$userId]);
-$requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Top-up Request</title>
+    <style>
+      body { font-family: sans-serif; max-width: 560px; margin: 24px auto; }
+      input, button, select, textarea { padding:8px; margin:6px 0; width:100%; box-sizing:border-box; }
+      .note { color:#666; font-size: 13px; }
+      .warn { color:#b00; }
+      .ok { color:#0a0; }
+      .card { border:1px solid #ddd; padding:12px; border-radius:8px; }
+    </style>
+  </head>
+  <body>
+    <h2>TOPUP (Username)</h2>
+    <div class="card">
+      <form method="post" action="api/ingest_topup_request.php">
+        <label>Username</label>
+        <input name="username" required placeholder="milk123">
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Top-up Request</title>
-<style>
-body{ font-family: Arial; margin: 40px; }
-input, button { padding: 6px; margin: 4px 0; }
-table { border-collapse: collapse; width: 50%; margin-top: 20px; }
-th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-</style>
-</head>
-<body>
-<h2>Request Top-up</h2>
-<?php if($msg): ?>
-<p style="color:green;"><?=htmlspecialchars($msg)?></p>
-<?php endif; ?>
-<form method="post">
-    <label>Amount:</label>
-    <input type="number" name="amount" min="1" required>
-    <button type="submit">Request Top-up</button>
-</form>
+        <label>Amount</label>
+        <input name="amount" type="number" min="1" step="1" required placeholder="amount (bhat)">
 
-<h3>Your Requests</h3>
-<table>
-<tr><th>ID</th><th>Amount</th><th>Status</th><th>Created At</th></tr>
-<?php foreach($requests as $r): ?>
-<tr>
-    <td><?=htmlspecialchars($r['id'])?></td>
-    <td><?=htmlspecialchars($r['amount'])?></td>
-    <td><?=htmlspecialchars($r['status'])?></td>
-    <td><?=htmlspecialchars($r['created_at'])?></td>
-</tr>
-<?php endforeach; ?>
-</table>
-</body>
+        <label>note</label>
+        <input name="note" placeholder="optional">
+
+        <button type="submit">request</button>
+      </form>
+    </div>
+
+    <p class="note">
+      The system will search for your card using the username you provided.
+If you haven't linked your card to your account yet, go to <code>api/bind_card.php</code>
+    </p>
+  </body>
 </html>
