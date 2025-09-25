@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Sep 24, 2025 at 04:51 PM
+-- Generation Time: Sep 25, 2025 at 06:12 AM
 -- Server version: 10.11.13-MariaDB-0ubuntu0.24.04.1
 -- PHP Version: 8.3.6
 
@@ -32,6 +32,15 @@ CREATE TABLE `cards` (
   `balance` int(11) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `cards`
+--
+
+INSERT INTO `cards` (`uid`, `balance`) VALUES
+('1AF09919', 0),
+('A514B601', 1000000),
+('BC643D02', 100000);
+
 -- --------------------------------------------------------
 
 --
@@ -48,6 +57,14 @@ CREATE TABLE `logs` (
   `ts` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `logs`
+--
+
+INSERT INTO `logs` (`id`, `uid`, `action`, `delta`, `balance_after`, `applied`, `ts`) VALUES
+(1, 'BC643D02', 'topup', 100000, 100000, '3FFF6C2AA6F167319A84DCF854769E95', '2025-09-25 05:41:58'),
+(2, 'A514B601', 'topup', 1000000, 1000000, '56C64E62C7ACF1F3488DD02196D884FE', '2025-09-25 05:54:33');
+
 -- --------------------------------------------------------
 
 --
@@ -56,21 +73,24 @@ CREATE TABLE `logs` (
 
 CREATE TABLE `nfc_cards` (
   `id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
   `card_uid` varchar(64) NOT NULL,
   `nickname` varchar(50) DEFAULT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `version` int(11) NOT NULL DEFAULT 1,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `bound_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `nfc_cards`
 --
 
-INSERT INTO `nfc_cards` (`id`, `user_id`, `card_uid`, `nickname`, `is_active`, `version`, `created_at`) VALUES
-(2, 3, 'BC643D2E', 'ซัน', 1, 1, '2025-08-22 12:50:22'),
-(3, 4, 'F2B38D6C', 'แมว', 1, 1, '2025-08-24 09:00:36');
+INSERT INTO `nfc_cards` (`id`, `user_id`, `card_uid`, `nickname`, `is_active`, `version`, `created_at`, `bound_at`) VALUES
+(2, 3, 'BC643D2E', 'ซัน', 1, 1, '2025-08-22 12:50:22', NULL),
+(3, 4, 'F2B38D6C', 'แมว', 1, 1, '2025-08-24 09:00:36', NULL),
+(4, 5, 'BC643D02', 'Admin__', 1, 1, '2025-09-25 04:36:11', '2025-09-25 04:50:43'),
+(5, 6, 'A514B601', NULL, 1, 1, '2025-09-25 05:53:46', '2025-09-25 05:53:46');
 
 -- --------------------------------------------------------
 
@@ -119,6 +139,14 @@ CREATE TABLE `pending_writes` (
   `claimed_by` varchar(128) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `pending_writes`
+--
+
+INSERT INTO `pending_writes` (`id`, `uid`, `newBlock4`, `request_id`, `created_at`, `claimed_at`, `claimed_by`) VALUES
+(1, 'BC643D02', '3FFF6C2AA6F167319A84DCF854769E95', 1, '2025-09-25 05:41:58', NULL, NULL),
+(25, 'A514B601', '56C64E62C7ACF1F3488DD02196D884FE', 2, '2025-09-25 05:54:33', NULL, NULL);
+
 -- --------------------------------------------------------
 
 --
@@ -160,6 +188,14 @@ CREATE TABLE `requests` (
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `requests`
+--
+
+INSERT INTO `requests` (`id`, `uid`, `req_by`, `amount`, `type`, `status`, `admin_id`, `admin_note`, `created_at`, `updated_at`) VALUES
+(1, 'BC643D02', 5, 100000, 'topup', 'applied', NULL, 'fastest', '2025-09-25 04:40:16', '2025-09-25 05:41:58'),
+(2, 'A514B601', 6, 1000000, 'topup', 'applied', NULL, '', '2025-09-25 05:54:24', '2025-09-25 05:54:33');
 
 -- --------------------------------------------------------
 
@@ -229,7 +265,8 @@ INSERT INTO `users` (`id`, `username`, `password`, `name`, `phone`, `email`, `ro
 (2, 'demo', '$2y$10$0Jk0eN6Z2Tn3T4yq7r7cOe3e6t9M3u4Xo0b6mM0s3x5Q3m8oQnE3W', 'ผู้ใช้ตัวอย่าง', '0812345678', 'demo@example.com', 'user', '2025-08-22 12:47:14'),
 (3, 'obtai_7ma', '$2y$10$sfvoaosj4glcde7LPDNKnO3YUVHIdJ0dcnYWWh32YEjPiirbBBVka', 'post', '0789245614', 'user_1755866991_1241@nano.com', 'user', '2025-08-22 12:49:51'),
 (4, 'มีสา', '$2y$10$TTPGqTBV/rVMTjMlvYVD9.Dkm0F4tkTct6CC0ItVis20oEAUmKdm.', 'ธนสรรค์', '0813524711', 'user_1756025930_3135@nano.com', 'user', '2025-08-24 08:58:50'),
-(5, 'Admin__', '$2y$10$J25dkBCWDEdqI59thud.e.pK1cDSQT6Cld5v/uNJWNoH0nf87gSqO', 'Wiritphon Charoensub', '0642413021', 'user_1758622670_8177@nano.com', 'admin', '2025-09-23 10:17:50');
+(5, 'Admin__', '$2y$10$J25dkBCWDEdqI59thud.e.pK1cDSQT6Cld5v/uNJWNoH0nf87gSqO', 'Wiritphon Charoensub', '0642413021', 'user_1758622670_8177@nano.com', 'admin', '2025-09-23 10:17:50'),
+(6, 'test55', '$2y$10$kANuXqjCOTKTNkYQ/qcXU.vaXuqqT9n4fdmltqnYXtYvqoVb.xSsG', 'testTest', '0000000000', 'user_1758779372_7495@nano.com', 'user', '2025-09-25 05:49:32');
 
 --
 -- Indexes for dumped tables
@@ -269,6 +306,7 @@ ALTER TABLE `order_items`
 --
 ALTER TABLE `pending_writes`
   ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_pending_writes_uid` (`uid`),
   ADD KEY `request_id` (`request_id`);
 
 --
@@ -281,7 +319,9 @@ ALTER TABLE `products`
 -- Indexes for table `requests`
 --
 ALTER TABLE `requests`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_requests_uid` (`uid`),
+  ADD KEY `idx_requests_status` (`status`);
 
 --
 -- Indexes for table `transactions`
@@ -307,13 +347,13 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `logs`
 --
 ALTER TABLE `logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `nfc_cards`
 --
 ALTER TABLE `nfc_cards`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `order_items`
@@ -325,7 +365,7 @@ ALTER TABLE `order_items`
 -- AUTO_INCREMENT for table `pending_writes`
 --
 ALTER TABLE `pending_writes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
 
 --
 -- AUTO_INCREMENT for table `products`
@@ -337,7 +377,7 @@ ALTER TABLE `products`
 -- AUTO_INCREMENT for table `requests`
 --
 ALTER TABLE `requests`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `transactions`
@@ -349,7 +389,7 @@ ALTER TABLE `transactions`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- Constraints for dumped tables
